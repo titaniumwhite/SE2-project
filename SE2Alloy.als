@@ -65,8 +65,10 @@ fact noPersonalCodeWOUser{
 }
 
 fact landAgronomist{
-	//no Agronomist manage in different Land
+	//no Agronomist manage different Lands
 	all a:Agronomist | (no disj l1,l2:Land | a in l1.monitored and a in l2.monitored)
+and //no Land is managed by different Agronomist
+	all l:Land | (no disj a1,a2:Agronomist | l in a1.manage and l in a2.manage)
 and	 //no land without an Agronomist
 	all l:Land | one a:Agronomist | a in l.monitored
 and	// no Agronomist without a land
@@ -102,6 +104,7 @@ and
 pred show{
 	#Agronomist = 3
 	#Land = 3
+	#DailyPlan = 5
 }
 
 run show for 10
