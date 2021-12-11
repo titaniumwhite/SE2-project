@@ -1,14 +1,12 @@
-open util/time
-
 //////////////////////////ENTITIES\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 sig PersonalCode{}
 
-sig User{
+
+abstract sig User{
 	userPersonalCode: one PersonalCode
 }
 
 sig Farmer extends User{
-	use: one Tablet,
 	send: set Ticket,
 	work: one Land,
 	refersA: one Agronomist
@@ -17,7 +15,7 @@ sig Farmer extends User{
 sig Agronomist extends User{
 	manage: one Land,
 	send: set Alert,
-	plan: some DailyPlan 
+	plan: one Calendar
 }
 
 sig PolicyMaker extends User{
@@ -25,17 +23,12 @@ sig PolicyMaker extends User{
 
 sig Land{
 	works: set Farmer,
-	monitors: one Agronomist,
+	monitored: one Agronomist,
 	useT: one Tablet,
 	haveC: one Calendar
 }
 
 abstract sig Ticket{}
-
-abstract sig VisitState{
-	vmState: State lone -> Time,
-	haveVisit: lone Visit
-}
 
 abstract sig State{}
 one sig ACCEPTED extends State{}
@@ -46,22 +39,12 @@ sig RequestVisit extends Ticket{}
 
 sig RequestHelp extends Ticket{}
 
-sig Visit extends VisitState{
-	request: lone RequestVisit,
-	inside: one DailyPlan,
-	visitTime: one Time,
-	landVisit: one Land,
-	meet: one Farmer
-}
-
 sig DailyPlan{
-	contains: set Visit,
+	visit: set Farmer
 }
 
 sig Calendar{
-	contains: set DailyPlan,
-	belongA: one Agronomist,
-	belongL: one Land
+	contains: set DailyPlan
 }
 
 sig Tablet{}
@@ -81,12 +64,11 @@ fact noPersonalCodeWOUser{
 	all pc:PersonalCode | let u=User | (pc in u.userPersonalCode)
 }
 
-
 fact landAgronomist{
-	// no Agronomist that works for different lands
-	all a:Agronomist | (no disj l1,l2:Land | a in l1.monitors and a in l2.monitors)
-and //no land without an Agronomist
-	all l:Land | one a:Agronomist | a in l.monitors
+	//no Agronomist manage in different Land
+	all a:Agronomist | (no disj l1,l2:Land | a in l1.monitored and a in l2.monitored)
+and	 //no land without an Agronomist
+	all l:Land | one a:Agronomist | a in l.monitored
 and	// no Agronomist without a land
 	all a:Agronomist | one l:Land | l in a.manage
 }
@@ -100,6 +82,26 @@ and //no Farmer without a land
 	all f:Farmer | one l:Land | l in f.work
 }
 
-pred show{}
+//no Calendar WO Agronomist
+fact calendarAgronomist{
+	all c:Calendar | one a:Agronomist | c in a.plan
+}
 
-run show for 2
+//no DailyPlan WO Calendar
+fact calendarDailyPlan{
+	all dp:DailyPlan | one c:Calendar | dp in c.contains 
+}
+
+//every tablet is unique and belongs to one Land
+fact noTabletWOLand{
+	all disj l1,l2:Land | l1.useT != l2.useT
+and
+	all t:Tablet | one l:Land | t in l.useT
+}
+
+pred show{
+	#Agronomist = 3
+	#Land = 3
+}
+
+run show for 10
