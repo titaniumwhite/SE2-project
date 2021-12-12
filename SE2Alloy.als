@@ -28,7 +28,9 @@ sig Land{
 	haveC: one Calendar
 }
 
-abstract sig Ticket{}
+abstract sig Ticket{
+	state: one State
+}
 
 abstract sig State{}
 one sig ACCEPTED extends State{}
