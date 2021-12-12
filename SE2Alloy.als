@@ -33,7 +33,9 @@ sig Land{
 	useT: one Tablet
 }
 
-abstract sig Ticket{}
+abstract sig Ticket{
+	state: one State
+}
 
 abstract sig State{}
 one sig ACCEPTED extends State{}
