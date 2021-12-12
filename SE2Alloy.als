@@ -8,24 +8,29 @@ abstract sig User{
 
 sig Farmer extends User{
 	send: set Ticket,
-	work: one Land,
-	refersA: one Agronomist
+	work: one Land
 }
 
 sig Agronomist extends User{
-	manage: one Land,
+	monitors: one Land,
 	send: set Alert,
-	plan: one Calendar
+	plan: one Calendar,
+	receive: set Ticket
 }
 
 sig PolicyMaker extends User{
+	send: some Report
+}
+
+sig Report{
+	refersTo: one Farmer,
+	sentTo: one Agronomist
 }
 
 sig Land{
-	works: set Farmer,
-	monitored: one Agronomist,
-	useT: one Tablet,
-	haveC: one Calendar
+	isWorked: set Farmer,
+	isMonitored: one Agronomist,
+	useT: one Tablet
 }
 
 abstract sig Ticket{
@@ -39,7 +44,10 @@ one sig REJECTED extends State{}
 
 sig RequestVisit extends Ticket{}
 
-sig RequestHelp extends Ticket{}
+sig RequestHelp extends Ticket{
+	sentBy: one Farmer,
+	sentTo: one Agronomist
+}
 
 sig DailyPlan{
 	visit: set Farmer
@@ -55,7 +63,16 @@ sig Alert{}
 
 ////////////////////////////////////////FACTS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+////////////////////////////////////WIP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+fact requestHelpToAgronomist{
+	sentBy = ~send and sentTo = ~receive
+and //A Ticket sent by a Farmer can only be sent to the Agronomist of the Farmer's Land
+	all f:Farmer, t:Ticket | (t in f.send) implies (t in receive[isMonitored[f.work]])
+}
+
+
+/////////////////////////////////////Done\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 //every User's personal code is unique and belongs to only one user
 fact noEqualPersonalCode{
 	all disj u,u':User | u.userPersonalCode != u'.userPersonalCode
@@ -66,24 +83,19 @@ fact noPersonalCodeWOUser{
 	all pc:PersonalCode | let u=User | (pc in u.userPersonalCode)
 }
 
+fact policyMakerReport{
+	//no Report WO PolicyMaker
+	all r:Report | one p:PolicyMaker | r in p.send
+}
+
 fact landAgronomist{
-	//no Agronomist manage different Lands
-	all a:Agronomist | (no disj l1,l2:Land | a in l1.monitored and a in l2.monitored)
-and //no Land is managed by different Agronomist
-	all l:Land | (no disj a1,a2:Agronomist | l in a1.manage and l in a2.manage)
-and	 //no land without an Agronomist
-	all l:Land | one a:Agronomist | a in l.monitored
-and	// no Agronomist without a land
-	all a:Agronomist | one l:Land | l in a.manage
+	//no Agronomist monitors different Lands
+	isMonitored = ~monitors
 }
 
 fact landFarmer{
 	//no Farmer that works in differents lands
-	all f:Farmer | (no disj l1,l2:Land | f in l1.works and f in l2.works)
-and //no land without Farmer
-	all l:Land | one f:Farmer | f in l.works
-and //no Farmer without a land
-	all f:Farmer | one l:Land | l in f.work
+	isWorked =  ~work
 }
 
 //no Calendar WO Agronomist
@@ -104,9 +116,9 @@ and
 }
 
 pred show{
-	#Agronomist = 3
-	#Land = 3
-	#DailyPlan = 5
+	#RequestHelp = 3
+	#Agronomist = 2
+	#Farmer = 3
 }
 
 run show for 10
