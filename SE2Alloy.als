@@ -8,7 +8,8 @@ abstract sig User{
 
 sig Farmer extends User{
 	sendT: set Ticket,
-	work: one Land
+	work: one Land,
+	isVisited: set Visit
 }
 
 sig Agronomist extends User{
@@ -40,6 +41,7 @@ abstract sig Ticket{
 }
 
 abstract sig State{}
+// If RequestVisit == ACCEPTED, insert Visit in DailyPlan
 one sig ACCEPTED extends State{}
 one sig PENDING extends State{}
 one sig REJECTED extends State{}
@@ -48,30 +50,49 @@ sig RequestVisit extends Ticket{}
 
 sig RequestHelp extends Ticket{}
 
+sig Visit{
+	visit: one Farmer
+}
+
 sig DailyPlan{
-	visit: set Farmer
+	containsVisit: set Visit,
+//	belongsTo: one Calendar
 }
 
 sig Calendar{
-	contains: set DailyPlan
+	containsDP: set DailyPlan,
+	isPlanned: one Agronomist
 }
 
 sig Tablet{}
 
-sig Alert{}
+sig Alert{
+	alertSentTo: one Land
+}
 
 ////////////////////////////////////////FACTS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-////////////////////////////////////WIP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-//TODO: correggere noDailyPlanWOCalendar
+////////////////////////////////////////WIP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
-fact visitFarmer {
-	// The DailyPlan of an Agronomist have to visit only the Farmers monitored by the Agronomist [CORRETTO?]
-	all d:DailyPlan | all a:Agronomist, f:Farmer | (d in a.plan.contains) implies (d in contains[plan[isMonitored[f.work]]])
+
+/////////////////////////////////TO KEEP AN EYE ON\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+fact {
+	plan= ~isPlanned and/* belongsTo = ~containsDP and*/ isVisited = ~visit
 }
 
-
+fact visitFarmer {
+	//No Visit WO DailyPlan
+	all v:Visit | one d:DailyPlan | v in d.containsVisit
+and	// A Visit can be contained only in one DailyPlan
+	all v:Visit | (no disj d1,d2:DailyPlan | v in d1.containsVisit and v in d2.containsVisit)
+	//BUG: All the Visit refers to only one Calendar
+and	// In a DailyPlan, there can be only one Visit per Farmer [IS BUG SOLVED????]
+	all f:Farmer | all dp:DailyPlan | (f in dp.containsVisit.visit) implies (no disj v1,v2:Visit | v1 in dp.containsVisit and v2 in dp.containsVisit and f in v1.visit and f in v2.visit)
+and	// The Visit to a Farmer has to be done only to the Agronomist's Farmers 
+	all v:Visit | all f:Farmer | (f in v.visit) implies (v in f.work.isMonitored.plan.containsDP.containsVisit )
+}
 
 /////////////////////////////////////Done\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 //every User's personal code is unique and belongs to only one user
@@ -89,6 +110,12 @@ fact reportToAgronomist{
 	all r:Report | all f:Farmer | (f in r.refersTo) implies (f.work.isMonitored in r.sentTo)
 }
 
+fact ticketToAgronomist{
+	ticketSentBy = ~sendT and ticketSentTo = ~receiveT
+and //A Ticket sent by a Farmer can only be sent to the Agronomist of the Farmer's Land
+	all f:Farmer, t:Ticket | (t in f.sendT) implies (t in receiveT[isMonitored[f.work]])
+}
+
 fact policyMakerReport{
 	//no Report WO PolicyMaker
 	all r:Report | one p:PolicyMaker | r in p.send
@@ -104,20 +131,23 @@ fact landFarmer{
 	isWorked =  ~work
 }
 
-fact ticketToAgronomist{
-	ticketSentBy = ~sendT and ticketSentTo = ~receiveT
-and //A Ticket sent by a Farmer can only be sent to the Agronomist of the Farmer's Land
-	all f:Farmer, t:Ticket | (t in f.sendT) implies (t in receiveT[isMonitored[f.work]])
-}
-
 //no Calendar WO Agronomist
 fact calendarAgronomist{
 	all c:Calendar | one a:Agronomist | c in a.plan
 }
 
-//no DailyPlan WO Calendar !!!!!!!!!!!!!!
+//no DailyPlan WO Calendar
 fact calendarDailyPlan{
-	all dp:DailyPlan | one c:Calendar | dp in c.contains 
+	all dp:DailyPlan | one c:Calendar | dp in c.containsDP 
+}
+
+fact alertAgronomist{
+	//An Alert can be sent only from a single Agronomist
+	all al:Alert | (no disj a1,a2:Agronomist | al in a1.sendA and al in a2.sendA)
+and //No Alert WO Agronomist
+	all al:Alert | one ag:Agronomist | al in ag.sendA
+and //The Alert has to be sent to the Agronomist's Land
+	all al:Alert | all l:Land | (al in l.isMonitored.sendA) implies (al.alertSentTo in l)
 }
 
 //every tablet is unique and belongs to one Land
@@ -128,9 +158,10 @@ and
 }
 
 pred show{
-	#DailyPlan = 7
+	#DailyPlan = 4
+	#Visit = 7
 	#Farmer = 5
-	#Agronomist = 3
+	#Agronomist = 2
 }
 
 run show for 10 but 0 PolicyMaker 
