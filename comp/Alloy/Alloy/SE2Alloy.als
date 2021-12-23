@@ -160,7 +160,11 @@ and	// The Visit to a Farmer has to be done only from the Agronomist of the Farm
 }
 
 pred show{
-	
+	#PolicyMaker = 2
+	#Agronomist = 3
+	#Farmer = 5
+	#RequestVisit = 3
+	#ACCEPTED = 1
 }
 
 run show for 10
@@ -231,7 +235,7 @@ pred agronomistCreateAlert[ag:Agronomist, al:Alert, f:Farmer, l:Land]{
 	al.alertSentTo = l
 }
 
-pred farmerMakeARequestHelp[f:Farmer, r:RequestHelp, a:Agronomist]{
+pred farmerMakeARequestHelp[f:Farmer, r:RequestHelp, a:Agronomist]{An 
 	a in f.work.isMonitored
 	r.ticketSentTo = a
 	f.sendT = r
@@ -246,4 +250,4 @@ pred farmerMakeARequestVisitWhichIsAccepted[f:Farmer, r:RequestVisit, a:Agronomi
 	v.visit = f
 }
 
-run policyMakerCreateReport
+run farmerMakeARequestVisitWhichIsAccepted
